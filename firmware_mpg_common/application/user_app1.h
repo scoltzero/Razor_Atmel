@@ -23,18 +23,19 @@ Header file for yournewtaskname.c
 /**********************************************************************************************************************
 Type Definitions
 **********************************************************************************************************************/
-
+typedef enum {rssi0=0,rssi1,rssi2,rssi3} RssiType;
 
 /**********************************************************************************************************************
 Constants / Definitions
 **********************************************************************************************************************/
 /* Required constants for ANT channel configuration */
-#define ANT_CHANNEL_USERAPP             ANT_CHANNEL_1         /* Channel 0 - 7 */
+#define ANT_CHANNEL_USERAPP_SEEK        ANT_CHANNEL_0         /* Channel 0 - 7 */
+#define ANT_CHANNEL_USERAPP_HIDE        ANT_CHANNEL_1         /* Channel 0 - 7 */
 #define ANT_CHANNEL_TYPE_USERAPP        CHANNEL_TYPE_SLAVE    /* ANT SLAVE */
-#define ANT_DEVICEID_LO_USERAPP         (u8)0x3C                /* Low byte of two-byte Device # */
-#define ANT_DEVICEID_HI_USERAPP         (u8)0x14                /* High byte of two-byte Device # */
-#define ANT_DEVICE_TYPE_USERAPP         (u8)1                 /* 1 - 255 */
-#define ANT_TRANSMISSION_TYPE_USERAPP   (u8)1                 /* 1-127 (MSB is pairing bit) */
+#define ANT_DEVICEID_LO_USERAPP         (u8)0x19                 /* Low byte of two-byte Device # */
+#define ANT_DEVICEID_HI_USERAPP         (u8)0x13                 /* High byte of two-byte Device # */
+#define ANT_DEVICE_TYPE_USERAPP         (u8)0                /* 1 - 255 */
+#define ANT_TRANSMISSION_TYPE_USERAPP   (u8)0                 /* 1-127 (MSB is pairing bit) */
 #define ANT_CHANNEL_PERIOD_LO_USERAPP   (u8)0x00              /* Low byte of two-byte channel period 0x0001 - 0x7fff */
 #define ANT_CHANNEL_PERIOD_HI_USERAPP   (u8)0x20              /* High byte of two-byte channel period */
 #define ANT_FREQUENCY_USERAPP           (u8)50                /* 2400MHz + this number 0 - 99 */
@@ -70,21 +71,29 @@ void UserApp1RunActiveState(void);
 /***********************************************************************************************************************
 State Machine Declarations
 ***********************************************************************************************************************/
-static void UserApp1SM_WaitChannelAssign(void);
-static void UserApp1SM_Assignrole(void);  
+static void UserApp1SM_WaitChannel0Assign(void);
+static void UserApp1SM_CheckChannel0Assign(void);
+static void UserApp1SM_WaitChannel1Assign(void);
+static void UserApp1SM_CheckChannel1Assign(void);
+
+static void UserApp1SM_Idle(void);    
 static void UserApp1SM_WaitChannelOpen(void);
-static void UserApp1SM_ChannelOpen(void);
+static void UserApp1SM_Readytostart(void);
+static void UserApp1SM_Gamestart(void);
+static void UserApp1SM_wait3s(void);
+static void UserApp1SM_seek(void);
+static void UserApp1SM_Foundhider(void);
+static void UserApp1SM_hide(void);
 static void UserApp1SM_WaitChannelClose(void);
-static void UserApp1SM_Seeker(void);
+
 static void UserApp1SM_Error(void);         
 static void UserApp1SM_FailedInit(void);        
-static void UserApp1SM_Hider(void);
-static void UserApp1SM_AntConfigureSlave(void);
-static void UserApp1SM_ChannelOpen2(void);
-static void UserApp1SM_SeekerFound(void);
+
+
 #endif /* __USER_APP_H */
 
 
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* End of File                                                                                                        */
 /*--------------------------------------------------------------------------------------------------------------------*/
+

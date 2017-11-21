@@ -68,11 +68,17 @@ static u32 UserApp1_u32TickMsgCount = 0;             /* Counts the number of ANT
 
 static fnCode_type UserApp1_StateMachine;            /* The state machine function pointer */
 static u32 UserApp1_u32Timeout;                      /* Timeout counter used across states */
+static AntAssignChannelInfoType sAntSetupData_seek;
+static AntAssignChannelInfoType sAntSetupData_hide;
+static AntChannelNumberType ANT_CHANNEL_USERAPP;
+static u32 u32WaitTime;
 
-static u8 UserApp1_au8MasterName[9]   = "0\0\0\0\0\0\0\0";
+static u8 u8rssi=99;
+static u8 u8Lastrssi=99;
+static RssiType RssiLevel=rssi0;
+static RssiType LastRssiLevel=rssi0;
 
-static AntAssignChannelInfoType sMasterChannel;
-static AntAssignChannelInfoType sSlaveChannel;
+static u8 au8TestMessage_hide[] = {0x13, 0x19, 0, 0, 0xA5, 0, 0, 0};
 /**********************************************************************************************************************
 Function Definitions
 **********************************************************************************************************************/
@@ -100,88 +106,48 @@ Promises:
 */
 void UserApp1Initialize(void)
 {
-  u8 au8WelcomeMessage[] = "Assign your role";
-  u8 au8Instructions[] = "B0 Hider  B1 Seeker";
-
-
-  /* Clear screen and place start messages */
-#ifdef EIE1
   LCDCommand(LCD_CLEAR_CMD);
-  LCDMessage(LINE1_START_ADDR, au8WelcomeMessage); 
-  LCDMessage(LINE2_START_ADDR, au8Instructions); 
-
-  
-  
-  LedOff(ORANGE);
-  LedOff(RED);
-  LedOff(PURPLE);
-  LedOff(CYAN);
-  LedOff(RED);
-  LedOff(BLUE);
-  LedOff(GREEN);
-  LedOff(WHITE);
-  /* Start with LED0 in RED state = channel is not configured */
-
-#endif /* EIE1 */
-  
-
+  LCDMessage(LINE1_START_ADDR, "  Choice the role!  "); 
+  LCDMessage(LINE2_START_ADDR, "B1 SEEKER B2 HIDER");
   
  /* Configure ANT for this application */
-  sMasterChannel.AntChannel          = ANT_CHANNEL_0;
-  sMasterChannel.AntChannelType      = CHANNEL_TYPE_MASTER;
-  sMasterChannel.AntChannelPeriodLo  = ANT_CHANNEL_PERIOD_LO_USERAPP;
-  sMasterChannel.AntChannelPeriodHi  = ANT_CHANNEL_PERIOD_HI_USERAPP;
+  /*Seek Channel1*/
+  sAntSetupData_hide.AntChannel          = ANT_CHANNEL_USERAPP_HIDE;
+  sAntSetupData_hide.AntChannelType      = CHANNEL_TYPE_MASTER;
+  sAntSetupData_hide.AntChannelPeriodLo  = ANT_CHANNEL_PERIOD_LO_USERAPP;
+  sAntSetupData_hide.AntChannelPeriodHi  = ANT_CHANNEL_PERIOD_HI_USERAPP;
   
-  sMasterChannel.AntDeviceIdLo       = ANT_DEVICEID_LO_USERAPP;
-  sMasterChannel.AntDeviceIdHi       = ANT_DEVICEID_HI_USERAPP;
-  sMasterChannel.AntDeviceType       = ANT_DEVICE_TYPE_USERAPP;
-  sMasterChannel.AntTransmissionType = ANT_TRANSMISSION_TYPE_USERAPP;
-  sMasterChannel.AntFrequency        = ANT_FREQUENCY_USERAPP;
-  sMasterChannel.AntTxPower          = ANT_TX_POWER_USERAPP;
+  sAntSetupData_hide.AntDeviceIdLo       = ANT_DEVICEID_LO_USERAPP;
+  sAntSetupData_hide.AntDeviceIdHi       = ANT_DEVICEID_HI_USERAPP;
+  sAntSetupData_hide.AntDeviceType       = ANT_DEVICE_TYPE_USERAPP;
+  sAntSetupData_hide.AntTransmissionType = ANT_TRANSMISSION_TYPE_USERAPP;
+  sAntSetupData_hide.AntFrequency        = ANT_FREQUENCY_USERAPP;
+  sAntSetupData_hide.AntTxPower          = ANT_TX_POWER_USERAPP;
+  
+  sAntSetupData_hide.AntNetwork = ANT_NETWORK_DEFAULT;
+  /* Hide Channel0 */
+  sAntSetupData_seek.AntChannel          = ANT_CHANNEL_USERAPP_SEEK;
+  sAntSetupData_seek.AntChannelType      = CHANNEL_TYPE_SLAVE;
+  sAntSetupData_seek.AntChannelPeriodLo  = 0;
+  sAntSetupData_seek.AntChannelPeriodHi  = 0;
+  
+  sAntSetupData_seek.AntDeviceIdLo       = ANT_DEVICEID_LO_USERAPP;
+  sAntSetupData_seek.AntDeviceIdHi       = ANT_DEVICEID_HI_USERAPP;
+  sAntSetupData_seek.AntDeviceType       = ANT_DEVICE_TYPE_USERAPP;
+  sAntSetupData_seek.AntTransmissionType = ANT_TRANSMISSION_TYPE_USERAPP;
+  sAntSetupData_seek.AntFrequency        = ANT_FREQUENCY_USERAPP;
+  sAntSetupData_seek.AntTxPower          = ANT_TX_POWER_USERAPP; 
 
-  sMasterChannel.AntNetwork          = ANT_NETWORK_DEFAULT;
-  
-  sSlaveChannel.AntChannel           = ANT_CHANNEL_1;
-  sSlaveChannel.AntChannelType       = CHANNEL_TYPE_SLAVE;
-  sSlaveChannel.AntChannelPeriodHi   = ANT_CHANNEL_PERIOD_HI_DEFAULT;
-  sSlaveChannel.AntChannelPeriodLo   = ANT_CHANNEL_PERIOD_LO_DEFAULT;
-  
-  sSlaveChannel.AntDeviceIdLo       = 0x3C;
-  sSlaveChannel.AntDeviceIdHi       = 0x14;
-  sSlaveChannel.AntDeviceType       = ANT_DEVICE_TYPE_USERAPP;
-  sSlaveChannel.AntTransmissionType = ANT_TRANSMISSION_TYPE_USERAPP;
-  sSlaveChannel.AntFrequency        = ANT_FREQUENCY_USERAPP;
-  sSlaveChannel.AntTxPower          = ANT_TX_POWER_USERAPP;
-  
-  sSlaveChannel.AntNetwork          = ANT_NETWORK_DEFAULT;
+  sAntSetupData_seek.AntNetwork = ANT_NETWORK_DEFAULT;
   
   for(u8 i = 0; i < ANT_NETWORK_NUMBER_BYTES; i++)
   {
-    sMasterChannel.AntNetworkKey[i] = ANT_DEFAULT_NETWORK_KEY;
-    sSlaveChannel.AntNetworkKey[i] = ANT_DEFAULT_NETWORK_KEY;
+    sAntSetupData_hide.AntNetworkKey[i] = ANT_DEFAULT_NETWORK_KEY;
+    sAntSetupData_seek.AntNetworkKey[i] = ANT_DEFAULT_NETWORK_KEY;
   }
-    
-  /* If good initialization, set state to Idle */
-  if( AntAssignChannel(&sMasterChannel) )
-  {
-    /* Channel assignment is queued so start timer */
-
-    UserApp1_u32Timeout = G_u32SystemTime1ms;
-    LedOn(RED);
-    
-    
-    UserApp1_StateMachine = UserApp1SM_WaitChannelAssign;
-  }
-  else
-  {
-    /* The task isn't properly initialized, so shut it down and don't run */
-
-    LedBlink(RED, LED_4HZ);
-
-    
-    UserApp1_StateMachine = UserApp1SM_Error;
-  }
-
+  
+  UserApp1_StateMachine = UserApp1SM_WaitChannel0Assign;
+ 
 } /* end UserApp1Initialize() */
 
 
@@ -216,14 +182,38 @@ State Machine Function Definitions
 **********************************************************************************************************************/
 
 /*-------------------------------------------------------------------------------------------------------------------*/
-/* Wait for the ANT channel assignment to finish */
-static void UserApp1SM_WaitChannelAssign(void)
-{
-  /* Check if the channel assignment is complete */
-  if(AntRadioStatusChannel(ANT_CHANNEL_0) == ANT_CONFIGURED)
+/* Wait for the ANT channel0 assignment to finish */
+static void UserApp1SM_WaitChannel0Assign(void)
+{ 
+   /* If good initialization, set state to Idle */
+  if( AntAssignChannel(&sAntSetupData_seek) )
   {
-    AntAssignChannel(&sSlaveChannel);
-    UserApp1_StateMachine = UserApp1SM_AntConfigureSlave;
+    LedOn(RED);
+    /* Channel assignment is queued so start timer */
+    UserApp1_u32Timeout = G_u32SystemTime1ms;
+    UserApp1_StateMachine = UserApp1SM_CheckChannel0Assign;
+  }
+  else
+  {
+    /* The task isn't properly initialized, so shut it down and don't run */
+    LedBlink(RED, LED_4HZ);
+    
+    UserApp1_StateMachine = UserApp1SM_Error;
+  }
+}/* end UserApp1SM_WaitChannel0Assign() */
+  
+/*-------------------------------------------------------------------------------------------------------------------*/
+/* Check if the channel0 assignment is complete */
+static void UserApp1SM_CheckChannel0Assign(void)
+{
+  if(AntRadioStatusChannel(ANT_CHANNEL_USERAPP_SEEK) == ANT_CONFIGURED)
+  {
+#ifdef EIE1
+    LedOff(RED);
+    LedOn(YELLOW);
+#endif /* EIE1 */
+
+    UserApp1_StateMachine = UserApp1SM_WaitChannel1Assign;
   }
   
   /* Monitor for timeout */
@@ -232,623 +222,629 @@ static void UserApp1SM_WaitChannelAssign(void)
     DebugPrintf("\n\r***Channel assignment timeout***\n\n\r");
     UserApp1_StateMachine = UserApp1SM_Error;
   }
+}/* end UserApp1SM_CheckChannel0Assign() */
       
-} /* end UserApp1SM_WaitChannelAssign() */
-
-static void UserApp1SM_AntConfigureSlave(void)
-{
-  if(AntRadioStatusChannel(ANT_CHANNEL_1) == ANT_CONFIGURED)
+/*-------------------------------------------------------------------------------------------------------------------*/
+/* Wait for the ANT channel1 assignment to finish */
+static void UserApp1SM_WaitChannel1Assign(void)
+{ 
+   /* If good initialization, set state to Idle */
+  if( AntAssignChannel(&sAntSetupData_hide) )
   {
-    AntQueueBroadcastMessage(ANT_CHANNEL_0, UserApp1_au8MasterName);
-    AntQueueBroadcastMessage(ANT_CHANNEL_1, UserApp1_au8MasterName);
-       
-    UserApp1_StateMachine = UserApp1SM_Assignrole;
+    LedOn(RED);
+    /* Channel assignment is queued so start timer */
+    UserApp1_u32Timeout = G_u32SystemTime1ms;
+    UserApp1_StateMachine = UserApp1SM_CheckChannel1Assign;
   }
-}
-
-
-
-static void UserApp1SM_Assignrole(void)
-{
-
-  if(WasButtonPressed(BUTTON0))
+  else
   {
-    ButtonAcknowledge(BUTTON0);
-
-    LCDCommand(LCD_CLEAR_CMD);
-    LCDMessage(LINE1_START_ADDR, "B0 Start"); 
+    /* The task isn't properly initialized, so shut it down and don't run */
+    LedBlink(RED, LED_4HZ);
     
-    UserApp1_StateMachine=UserApp1SM_Hider;
+    UserApp1_StateMachine = UserApp1SM_Error;
+  }
+}/* end UserApp1SM_WaitChannel1Assign() */
+  
+/*-------------------------------------------------------------------------------------------------------------------*/
+/* Check if the channel1 assignment is complete */
+static void UserApp1SM_CheckChannel1Assign(void)
+{
+  if(AntRadioStatusChannel(ANT_CHANNEL_USERAPP_HIDE) == ANT_CONFIGURED)
+  {
+#ifdef EIE1
+    LedOff(RED);
+    LedOn(YELLOW);
+#endif /* EIE1 */
+
+    UserApp1_StateMachine = UserApp1SM_Idle;
   }
   
+  /* Monitor for timeout */
+  if( IsTimeUp(&UserApp1_u32Timeout, 5000) )
+  {
+    DebugPrintf("\n\r***Channel assignment timeout***\n\n\r");
+    UserApp1_StateMachine = UserApp1SM_Error;
+  }
+}/* end UserApp1SM_CheckChannel1Assign() */
+
+
+  /*-------------------------------------------------------------------------------------------------------------------*/
+/* Wait for a message to be queued */
+static void UserApp1SM_Idle(void)
+{
+
   if(WasButtonPressed(BUTTON1))
   {
     ButtonAcknowledge(BUTTON1);
-
+    ANT_CHANNEL_USERAPP = ANT_CHANNEL_USERAPP_SEEK;
     LCDCommand(LCD_CLEAR_CMD);
-    LCDMessage(LINE1_START_ADDR, "B0 Start");
-    
-    UserApp1_StateMachine=UserApp1SM_Seeker;
+    LCDMessage(LINE1_START_ADDR, "PRESS B0 START"); 
+    UserApp1_StateMachine = UserApp1SM_Readytostart; 
   }
   
-}
-
-
-
-
-static void UserApp1SM_Hider(void)
-{
-  static u16 u16Counter=10000;
-  static bool bCountdown=FALSE;
-//  static bool bSend = FALSE;
-
-  
-  /* Look for BUTTON 0 to open channel */
-  if(WasButtonPressed(BUTTON0))
+   if(WasButtonPressed(BUTTON2))
   {
-    /* Got the button, so complete one-time actions before next state */
-    ButtonAcknowledge(BUTTON0);
-    bCountdown=TRUE;
-//    bSend=TRUE;
+    ButtonAcknowledge(BUTTON2);
+    ANT_CHANNEL_USERAPP = ANT_CHANNEL_USERAPP_HIDE;
     LCDCommand(LCD_CLEAR_CMD);
-  }
-  
-//  if(bSend)
-//  {
-//   if( AntReadAppMessageBuffer() )
-//    {
-//      /* New data message: check what it is */
-//      if(G_eAntApiCurrentMessageClass == ANT_TICK)
-//      {
-//        UserApp1_au8MasterName[6] = ANT_DEVICEID_HI_USERAPP;
-//        UserApp1_au8MasterName[7] = ANT_DEVICEID_LO_USERAPP;
-//        AntQueueBroadcastMessage(ANT_CHANNEL_0,UserApp1_au8MasterName);
-//      }
-//      else if(G_eAntApiCurrentMessageClass == ANT_DATA)
-//      {
-//        if(G_au8AntApiCurrentMessageBytes[5] == 0x01)
-//        {
-//          bCountdown=TRUE;
-//        }
-//      }
-//    }  
-//  }
-  
-  if(bCountdown)
-  {
-    u16Counter--;
-    if(u16Counter==9000)
-    {
-      LCDMessage(LINE1_START_ADDR, "Hider            "); 
-      LCDMessage(LINE2_START_ADDR, "9");
-    }
-    
-    if(u16Counter==8000)
-    {
-      LCDMessage(LINE1_START_ADDR, "Hider            "); 
-      LCDMessage(LINE2_START_ADDR, "8");
-    }
-    
-    if(u16Counter==7000)
-    {
-      LCDMessage(LINE1_START_ADDR, "Hider            "); 
-      LCDMessage(LINE2_START_ADDR, "7");
-    }
-    
-    if(u16Counter==6000)
-    {
-      LCDMessage(LINE1_START_ADDR, "Hider            "); 
-      LCDMessage(LINE2_START_ADDR, "6");
-    }
-    
-    if(u16Counter==5000)
-    {
-      LCDMessage(LINE1_START_ADDR, "Hider            "); 
-      LCDMessage(LINE2_START_ADDR, "5");
-    }
-    
-    if(u16Counter==4000)
-    {
-      LCDMessage(LINE1_START_ADDR, "Hider            "); 
-      LCDMessage(LINE2_START_ADDR, "4");
-    }
-    
-    if(u16Counter==3000)
-    {
-      LCDMessage(LINE1_START_ADDR, "Hider            "); 
-      LCDMessage(LINE2_START_ADDR, "3");
-    }
+    LCDMessage(LINE1_START_ADDR, "PRESS B0 START");
+    UserApp1_StateMachine = UserApp1SM_Readytostart;
+  } 
+} /* end UserApp1SM_Idle() */
 
-    if(u16Counter==2000)
-    {
-      LCDMessage(LINE1_START_ADDR, "Hider            "); 
-      LCDMessage(LINE2_START_ADDR, "2");
-    }
-    
-    if(u16Counter==1000)
-    {
-      LCDMessage(LINE1_START_ADDR, "Hider            "); 
-      LCDMessage(LINE2_START_ADDR, "1");
-    }
-    
-    if(u16Counter==0)
-    {     
-      LCDMessage(LINE1_START_ADDR, "Come Catch Me  "); 
-      LCDMessage(LINE2_START_ADDR, "HAHAHAHAHA!");
-      AntOpenChannelNumber(ANT_CHANNEL_0);
-      AntOpenChannelNumber(ANT_CHANNEL_1);
-      bCountdown=FALSE;
-
-      UserApp1_StateMachine = UserApp1SM_ChannelOpen2;
-    }
-
-  }
-}
   /*-------------------------------------------------------------------------------------------------------------------*/
-/* Wait for a message to be queued */
-static void UserApp1SM_Seeker(void)
+/* Ready*/    
+static void UserApp1SM_Readytostart(void)
 {
-  static u16 u16Counter=10000;
-  static bool bCountdown=FALSE;
-//  static bool bReceive = FALSE;
-
+  LedOff(WHITE);
+  LedOff(PURPLE);
+  LedOff(ORANGE);
   
-  /* Look for BUTTON 0 to open channel */
   if(WasButtonPressed(BUTTON0))
   {
-    /* Got the button, so complete one-time actions before next state */
     ButtonAcknowledge(BUTTON0);
-    bCountdown=TRUE;
+    
     LCDCommand(LCD_CLEAR_CMD);
-  }
+    if( ANT_CHANNEL_USERAPP == ANT_CHANNEL_USERAPP_SEEK)
+    {
+      
+      LCDMessage(LINE1_START_ADDR, "SEEKER");
+      LedBlink(CYAN,LED_1HZ);   
+    }
   
-  if(bCountdown)
-  {
-    u16Counter--;
-    if(u16Counter==9000)
-    {
-      LCDMessage(LINE1_START_ADDR, "Seeker            "); 
-      LCDMessage(LINE2_START_ADDR, "9");
-    }
-    
-    if(u16Counter==8000)
-    {
-       
-      LCDMessage(LINE2_START_ADDR, "8");
-    }
-    
-    if(u16Counter==7000)
+    if( ANT_CHANNEL_USERAPP == ANT_CHANNEL_USERAPP_HIDE)
     {
       
-      LCDMessage(LINE2_START_ADDR, "7");
-    }
-    
-    if(u16Counter==6000)
-    {
-      
-      LCDMessage(LINE2_START_ADDR, "6");
-    }
-    
-    if(u16Counter==5000)
-    {
-      
-      LCDMessage(LINE2_START_ADDR, "5");
-    }
-    
-    if(u16Counter==4000)
-    {
-      
-      LCDMessage(LINE2_START_ADDR, "4");
-    }
-    
-    if(u16Counter==3000)
-    {
-      
-      LCDMessage(LINE2_START_ADDR, "3");
+      LCDMessage(LINE1_START_ADDR, "HIDER");
     }
 
-    if(u16Counter==2000)
-    {
-      
-      LCDMessage(LINE2_START_ADDR, "2");
-    }
-    
-    if(u16Counter==1000)
-    {
-      
-      LCDMessage(LINE2_START_ADDR, "1");
-    }
-    
-    if(u16Counter==0)
-    {     
-      LCDMessage(LINE1_START_ADDR, "Ready or not  "); 
-      LCDMessage(LINE2_START_ADDR, "Here I come!");
-      
-      AntOpenChannelNumber(ANT_CHANNEL_1);
-      AntOpenChannelNumber(ANT_CHANNEL_0);
-      bCountdown=FALSE;
-
-      UserApp1_StateMachine = UserApp1SM_ChannelOpen;
-    }
-
+    u32WaitTime = G_u32SystemTime1ms;
+    UserApp1_StateMachine = UserApp1SM_wait3s; 
   }
 }
-  
-  
+
+/*-------------------------------------------------------------------------------------------------------------------*/
+/* Channel is open, so monitor data */
+static void UserApp1SM_wait3s(void)
+{
+  if( IsTimeUp(&u32WaitTime,3000) )
+  {
+    if( ANT_CHANNEL_USERAPP == ANT_CHANNEL_USERAPP_SEEK)
+    {
+      LCDCommand(LCD_CLEAR_CMD);
+      LCDMessage(LINE1_START_ADDR, "Ready or not?");
+      LCDMessage(LINE2_START_ADDR, "Here I come!");
+      LedOff(CYAN);
+    }
     
+    AntOpenChannelNumber(ANT_CHANNEL_USERAPP_SEEK); 
+    AntOpenChannelNumber(ANT_CHANNEL_USERAPP_HIDE);
+    
+    UserApp1_StateMachine = UserApp1SM_seek;
+    UserApp1_u32Timeout = G_u32SystemTime1ms;
+    UserApp1_StateMachine = UserApp1SM_WaitChannelOpen;
+  }
+}
 /*-------------------------------------------------------------------------------------------------------------------*/
 /* Wait for channel to open */
 static void UserApp1SM_WaitChannelOpen(void)
-{
-  /* Monitor the channel status to check if channel is opened */
-  if(AntRadioStatusChannel(ANT_CHANNEL_USERAPP) == ANT_OPEN)
+{ 
+  if((AntRadioStatusChannel(ANT_CHANNEL_USERAPP_SEEK) == ANT_OPEN)&&
+     (AntRadioStatusChannel(ANT_CHANNEL_USERAPP_HIDE) == ANT_OPEN))
   {
-    UserApp1_StateMachine = UserApp1SM_ChannelOpen;
+    LedOff(YELLOW);
+    LedOn(GREEN);
+    UserApp1_StateMachine = UserApp1SM_Gamestart;
   }
-  
   /* Check for timeout */
   if( IsTimeUp(&UserApp1_u32Timeout, TIMEOUT_VALUE) )
   {
     AntCloseChannelNumber(ANT_CHANNEL_USERAPP);
 
-    UserApp1_StateMachine = UserApp1SM_Assignrole;
-  }
-    
+    LedOff(GREEN);
+    LedOn(YELLOW);
+ 
+    UserApp1_StateMachine = UserApp1SM_Idle;
+  }  
 } /* end UserApp1SM_WaitChannelOpen() */
+
+/*-------------------------------------------------------------------------------------------------------------------*/
+/* Wait for game to start */
+static void UserApp1SM_Gamestart(void)
+{
+  if( ANT_CHANNEL_USERAPP == ANT_CHANNEL_USERAPP_SEEK)
+  {
+    UserApp1_StateMachine = UserApp1SM_seek;   
+  }
+  
+  if( ANT_CHANNEL_USERAPP == ANT_CHANNEL_USERAPP_HIDE)
+  {
+    UserApp1_StateMachine = UserApp1SM_hide;
+  }
+}
 
 
 /*-------------------------------------------------------------------------------------------------------------------*/
 /* Channel is open, so monitor data */
-static void UserApp1SM_ChannelOpen(void)
+static void UserApp1SM_seek(void)
 {
-  static s8 s8RssiChannel0=-99;
-  static u8 au8Temp[]={'-',1,1,'d','B','m','\0'};
-  static u8 u8Temp;
+  static u8 u8LastState = 0xff;
+  static u8 au8TickMessage[] = "EVENT x\n\r";  /* "x" at index [6] will be replaced by the current code */
+  static u8 au8DataContent_seek[] = "xxxxxxxxxxxxxxxx";
+  static u8 au8LastAntData[ANT_APPLICATION_MESSAGE_BYTES] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  static u8 au8TestMessage_seek[] = {0, 0, 0, 0, 0xA5, 0, 0, 0};
+  static u8 au8LCDRssi[]="-99dB";
+  bool bGotNewData;
+
+  static bool bBUZZER1=TRUE;
   static bool bFound=FALSE;
-  static u8 u8CountS = 0;
-
-//  /* Check for BUTTON0 to close channel */
-//  if(WasButtonPressed(BUTTON0))
-//  {
-//    /* Got the button, so complete one-time actions before next state */
-//    ButtonAcknowledge(BUTTON0);
-//    
-//    /* Queue close channel and change LED to blinking green to indicate channel is closing */
-//    AntCloseChannelNumber(ANT_CHANNEL_USERAPP);
-//
-//
-//    UserApp1_StateMachine = UserApp1SM_WaitChannelOpen;
-//  }
 
 
-  
-    /* Always check for ANT messages */
-  if(bFound==FALSE)
+    
+  u8Lastrssi=0-G_sAntApiCurrentMessageExtData.s8RSSI;
+ /*Check for BUTTON0 to close channel */
+  if(WasButtonPressed(BUTTON0))
   {
-    if( AntReadAppMessageBuffer() )
+    /* Got the button, so complete one-time actions before next state */
+    ButtonAcknowledge(BUTTON0);
+    
+    /* Queue close channel and change LED to blinking green to indicate channel is closing */
+    AntCloseChannelNumber(ANT_CHANNEL_USERAPP_SEEK);
+    AntCloseChannelNumber(ANT_CHANNEL_USERAPP_HIDE);
+    u8LastState = 0xff;
+
+#ifdef MPG1
+    LedOff(YELLOW);
+    LedOff(BLUE);
+    LedBlink(GREEN, LED_2HZ);
+#endif /* MPG1 */    
+ 
+    /* Set timer and advance states */
+    UserApp1_u32Timeout = G_u32SystemTime1ms;
+    UserApp1_StateMachine = UserApp1SM_WaitChannelClose;
+  } /* end if(WasButtonPressed(BUTTON0)) */
+  
+
+  /* Always check for ANT messages */
+  if( AntReadAppMessageBuffer() )
+  {
+      if(G_sAntApiCurrentMessageExtData.u8Channel==ANT_CHANNEL_0)
+  {
+     /* New data message: check what it is */
+    if(G_eAntApiCurrentMessageClass == ANT_DATA)
     {
-      /* New data message: check what it is */
-      if(G_eAntApiCurrentMessageClass == ANT_DATA)
+      UserApp1_u32DataMsgCount++;
+      
+      /* We are synced with a device, so blue is solid */
+      LedOff(GREEN);
+      LedOn(BLUE);
+
+      /* Check if the new data is the same as the old data and update as we go */
+      bGotNewData = FALSE;
+      for(u8 i = 0; i < ANT_APPLICATION_MESSAGE_BYTES; i++)
       {
-        if(G_sAntApiCurrentMessageExtData.u8Channel == 0x01)
+        if(G_au8AntApiCurrentMessageBytes[i] != au8LastAntData[i])
         {
-          s8RssiChannel0 = G_sAntApiCurrentMessageExtData.s8RSSI;
-          if(s8RssiChannel0 >= -55)
+          bGotNewData = TRUE;
+          au8LastAntData[i] = G_au8AntApiCurrentMessageBytes[i];
+          au8DataContent_seek[2 * i]     = HexToASCIICharUpper(G_au8AntApiCurrentMessageBytes[i] / 16);
+          au8DataContent_seek[2 * i + 1] = HexToASCIICharUpper(G_au8AntApiCurrentMessageBytes[i] % 16); 
+        }
+        
+        if((au8DataContent_seek[0]=='1')&&
+          (au8DataContent_seek[1]=='3')&&
+          (au8DataContent_seek[2]=='1')&&
+          (au8DataContent_seek[3]=='9'))
           {
-            UserApp1_au8MasterName[0]=0x01;
-            u8CountS++;
+            bFound=TRUE;
           }
-//          else
-//          {
-//            UserApp1_au8MasterName[0]=0x00;
-//            AntQueueBroadcastMessage(ANT_CHANNEL_1,UserApp1_au8MasterName );
-//          }
+      }
+   
+      if(bGotNewData)
+      {
+        /* We got new data: show on LCD */
+
+      /* Update our local message counter and send the message back */
+
+        /* Check for a special packet and respond */
+#ifdef MPG1
+        if(G_au8AntApiCurrentMessageBytes[0] == 0xA5)
+        {
+          LedOff(LCD_RED);
+          LedOff(LCD_GREEN);
+          LedOff(LCD_BLUE);
+          
+          if(G_au8AntApiCurrentMessageBytes[1] == 1)
+          {
+            LedOn(LCD_RED);
+          }
+          
+          if(G_au8AntApiCurrentMessageBytes[2] == 1)
+          {
+            LedOn(LCD_GREEN);
+          }
+
+          if(G_au8AntApiCurrentMessageBytes[3] == 1)
+          {
+            LedOn(LCD_BLUE);
+          }
+        }
+#endif /* MPG1 */    
+
+      } /* end if(bGotNewData) */
+    } /* end if(G_eAntApiCurrentMessageClass == ANT_DATA) */
+    
+    else if(G_eAntApiCurrentMessageClass == ANT_TICK)
+    {
+      UserApp1_u32TickMsgCount++;
+
+      /* Look at the TICK contents to check the event code and respond only if it's different */
+      if(u8LastState != G_au8AntApiCurrentMessageBytes[ANT_TICK_MSG_EVENT_CODE_INDEX])
+      {
+        /* The state changed so update u8LastState and queue a debug message */
+        u8LastState = G_au8AntApiCurrentMessageBytes[ANT_TICK_MSG_EVENT_CODE_INDEX];
+        au8TickMessage[6] = HexToASCIICharUpper(u8LastState);
+        DebugPrintf(au8TickMessage);
+
+        /* Parse u8LastState to update LED status */
+        switch (u8LastState)
+        {
+#ifdef MPG1
+          /* If we are paired but missing messages, blue blinks */
+          case EVENT_RX_FAIL:
+          {
+            LedOff(GREEN);
+            LedBlink(BLUE, LED_2HZ);
+            break;
+          }
+
+          /* If we drop to search, LED is green */
+          case EVENT_RX_FAIL_GO_TO_SEARCH:
+          {
+            LedOff(BLUE);
+            LedOn(GREEN);
+            break;
+          }
+#endif /* MPG 1 */
+
+          /* If the search times out, the channel should automatically close */
+          case EVENT_RX_SEARCH_TIMEOUT:
+          {
+            DebugPrintf("Search timeout event\r\n");
+            break;
+          }
+
+          case EVENT_CHANNEL_CLOSED:
+          {
+            DebugPrintf("Channel closed event\r\n");
+            break;
+          }
+
+            default:
+          {
+            DebugPrintf("Unexpected Event\r\n");
+            break;
+          }
+        } /* end switch (G_au8AntApiCurrentMessageBytes) */
+      } /* end if (u8LastState != G_au8AntApiCurrentMessageBytes[ANT_TICK_MSG_EVENT_CODE_INDEX]) */
+    } /* end else if(G_eAntApiCurrentMessageClass == ANT_TICK) */
+  }
+  } /* end AntReadAppMessageBuffer() */
+  
+  /* A slave channel can close on its own, so explicitly check channel status */
+  if(AntRadioStatusChannel(ANT_CHANNEL_USERAPP) != ANT_OPEN)
+  {
+#ifdef MPG1
+    LedBlink(GREEN, LED_2HZ);
+    LedOff(BLUE);
+#endif /* MPG1 */
+
+    u8LastState = 0xff;
+    
+    UserApp1_u32Timeout = G_u32SystemTime1ms;
+    UserApp1_StateMachine = UserApp1SM_WaitChannelClose;
+  } /* if(AntRadioStatusChannel(ANT_CHANNEL_USERAPP) != ANT_OPEN) */
+  
+
+
+if(G_sAntApiCurrentMessageExtData.u8Channel==ANT_CHANNEL_0)
+{
+  if(u8Lastrssi!=(0-G_sAntApiCurrentMessageExtData.s8RSSI))
+  {
+    u8Lastrssi=0-G_sAntApiCurrentMessageExtData.s8RSSI;
+    u8rssi=0-G_sAntApiCurrentMessageExtData.s8RSSI;
+    au8LCDRssi[1]=(u8rssi/10)+'0';
+    au8LCDRssi[2]=(u8rssi%10)+'0';
+    LCDClearChars(0x4D,5);
+    LCDMessage(0x4D, au8LCDRssi);
+    LastRssiLevel=RssiLevel;
+    
+    if((u8rssi<80)&&(u8rssi>30))
+    {
+      RssiLevel=rssi1;
+      if(u8rssi<60)
+      {
+        RssiLevel=rssi2;
+        if(u8rssi<45)
+        {
+          RssiLevel=rssi3;
         }
       }
-       
-      AntQueueBroadcastMessage(ANT_CHANNEL_1,UserApp1_au8MasterName );
-
-      u8Temp = abs(s8RssiChannel0);
-      au8Temp[1] = u8Temp/10 + 48;
-      au8Temp[2] = u8Temp%10 + 48;
-      LCDMessage(LINE1_END_ADDR-6, au8Temp);
-    
-
-      if(s8RssiChannel0>-120&&s8RssiChannel0<-110)
-      {
-        LedOn(ORANGE);
-        LedOff(RED);
-        LedOff(PURPLE);
-        LedOff(CYAN);
-        LedOff(RED);
-        LedOff(BLUE);
-        LedOff(GREEN);
-        LedOff(WHITE);
-      }
-      if(s8RssiChannel0>-110&&s8RssiChannel0<-100)
-      {
-        LedOn(ORANGE);
-        LedOn(RED);
-        LedOff(PURPLE);
-        LedOff(CYAN);
-        LedOff(RED);
-        LedOff(BLUE);
-        LedOff(GREEN);
-        LedOff(WHITE);
-      }
-      if(s8RssiChannel0>-100&&s8RssiChannel0<-90)
-      {
-        LedOn(ORANGE);
-        LedOn(RED);
-        LedOn(PURPLE);
-        LedOff(CYAN);
-        LedOff(RED);
-        LedOff(BLUE);
-        LedOff(GREEN);
-        LedOff(WHITE);
-      }
-      if(s8RssiChannel0>-90&&s8RssiChannel0<-80)
-      {
-        LedOn(ORANGE);
-        LedOn(RED);
-        LedOn(PURPLE);
-        LedOn(CYAN);
-        LedOff(RED);
-        LedOff(BLUE);
-        LedOff(GREEN);
-        LedOff(WHITE);
-      }
-      if(s8RssiChannel0>-80&&s8RssiChannel0<-70)
-      {
-        LedOn(ORANGE);
-        LedOn(RED);
-        LedOn(PURPLE);
-        LedOn(CYAN);
-        LedOn(RED);
-        LedOff(BLUE);
-        LedOff(GREEN);
-        LedOff(WHITE);
-      }
-      if(s8RssiChannel0>-70&&s8RssiChannel0<-65)
-      {
-        LedOn(ORANGE);
-        LedOn(RED);
-        LedOn(PURPLE);
-        LedOn(CYAN);
-        LedOn(RED);
-        LedOn(BLUE);
-        LedOff(GREEN);
-        LedOff(WHITE);
-      }
-      if(s8RssiChannel0>-65&&s8RssiChannel0<-60)
-      {
-        LedOn(ORANGE);
-        LedOn(RED);
-        LedOn(PURPLE);
-        LedOn(CYAN);
-        LedOn(RED);
-        LedOn(BLUE);
-        LedOn(GREEN);
-        LedOff(WHITE);
-      }
-      if(s8RssiChannel0>-60&&s8RssiChannel0<-55)
-      {
-        LedOn(ORANGE);
-        LedOn(RED);
-        LedOn(PURPLE);
-        LedOn(CYAN);
-        LedOn(RED);
-        LedOn(BLUE);
-        LedOn(GREEN);
-        LedOn(WHITE);
-        
-      }
-      if(s8RssiChannel0>=-55&&(u8CountS==16))
-      {
-        LedOff(ORANGE);
-        LedOff(RED);
-        LedOff(PURPLE);
-        LedOff(CYAN);
-        LedOff(RED);
-        LedOff(BLUE);
-        LedOff(GREEN);
-        LedOff(WHITE);
-        LCDMessage(LINE1_START_ADDR, "I Found You!");
-        LCDMessage(LINE2_START_ADDR, "10 seconds switch");
-        u8CountS=0;
-        UserApp1_StateMachine = UserApp1SM_SeekerFound;
-      }
     }
+    else
+    {
+      RssiLevel=rssi0;
+    }
+     
+  }/*End Read Rssi*/
+} 
+  if(RssiLevel!=LastRssiLevel)
+  {
+    switch(RssiLevel)
+    {
+    case rssi0:
+      {
+      LedOn(ORANGE);
+      LedOff(PURPLE);
+      LedOff(WHITE);     
+      PWMAudioSetFrequency(BUZZER1,300);
+      break;
+      }
+    
+    case rssi1:
+      {
+      LedOn(ORANGE);
+      LedOn(PURPLE);
+      LedOff(WHITE);
+      PWMAudioSetFrequency(BUZZER1,600);
+      break;
+      } 
+    
+    case rssi2:
+      {
+      LedOn(ORANGE);
+      LedOn(PURPLE);
+      LedOn(WHITE);
+      PWMAudioSetFrequency(BUZZER1,1000);
+      break;
+      }
+    case rssi3:
+      {
+       if(bFound)
+        {       
+          LedBlink(ORANGE,LED_1HZ);
+          LedBlink(PURPLE,LED_1HZ);
+          LedBlink(WHITE,LED_1HZ);  
+          
+          LCDCommand(LCD_CLEAR_CMD);
+          LCDMessage(LINE1_START_ADDR, "  FOUND YOU!  ");
+          
+          au8TestMessage_seek[0]=0x10;
+          AntQueueBroadcastMessage(ANT_CHANNEL_USERAPP_SEEK, au8TestMessage_seek);
+          au8TestMessage_seek[0]=0x00;
+          
+          u8LastState = 0xff;
+          
+          bFound=FALSE;
+          
+          au8DataContent_seek[0]='0';
+          au8DataContent_seek[1]='0';
+          au8DataContent_seek[2]='0';
+          au8DataContent_seek[3]='0';
+          
+          u32WaitTime = G_u32SystemTime1ms;
+          UserApp1_StateMachine = UserApp1SM_Foundhider;         
+        }
+       else
+       {
+         LCDCommand(LCD_CLEAR_CMD);
+         LCDMessage(LINE1_START_ADDR, "  not this  ");
+       }
 
-    
-    
+      break;
+      } 
+    }
+  }/*End */
+ 
+ 
+if(WasButtonPressed(BUTTON3))
+  {
+   ButtonAcknowledge(BUTTON3);
+   bBUZZER1=!bBUZZER1;  
   }
   
+if(bBUZZER1)
+  {
+   PWMAudioOn(BUZZER1);
+   }
+else
+  {
+   PWMAudioOff(BUZZER1);
+  }
+
   
-            
+
+  
+     
+} /* end UserApp1SM_ChannelOpen() */
+/*-------------------------------------------------------------------------------------------------------------------*/
+/* seek found*/
+static void UserApp1SM_Foundhider(void)
+{
+  PWMAudioOff(BUZZER1);
+  u8rssi=99;
+  u8Lastrssi=99;
+  RssiLevel=rssi0;
+  LastRssiLevel=rssi0;
+
+  
+  if(IsTimeUp(&u32WaitTime, 3000))
+  { 
+    LCDCommand(LCD_CLEAR_CMD);
+    LCDMessage(LINE1_START_ADDR, "PRESS B0 TO START"); 
+    
+    AntCloseChannelNumber(ANT_CHANNEL_USERAPP_SEEK);
+    AntCloseChannelNumber(ANT_CHANNEL_USERAPP_HIDE);
+  switch(ANT_CHANNEL_USERAPP)
+  {
+  case ANT_CHANNEL_USERAPP_SEEK:
+    {
+    ANT_CHANNEL_USERAPP = ANT_CHANNEL_USERAPP_HIDE;
+
+    break;
+    }
+    
+  case ANT_CHANNEL_USERAPP_HIDE:
+    {
+    ANT_CHANNEL_USERAPP = ANT_CHANNEL_USERAPP_SEEK;
+    au8TestMessage_hide[0] = '0';
+
+    break;
+    }
+    
+   default:break; 
+  }
+
+#ifdef MPG1
+    LedOff(YELLOW);
+    LedOff(BLUE);
+    LedBlink(GREEN, LED_2HZ);
+#endif /* MPG1 */    
+ 
+    /* Set timer and advance states */
+    UserApp1_u32Timeout = G_u32SystemTime1ms;
+    UserApp1_StateMachine = UserApp1SM_WaitChannelClose;   
+  }
+  
+}
+
+
+/*-------------------------------------------------------------------------------------------------------------------*/
+/* Channel is open, so monitor data */
+static void UserApp1SM_hide(void)
+{
+
+  static u8 au8DataContent_hide[] = "xxxxxxxxxxxxxxxx";
+  static u8 au8LastAntData[ANT_APPLICATION_MESSAGE_BYTES] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  static u8 au8TestMessage[] = {0x13, 0x19, 0x00, 0x00, 0xA5, 0, 0, 0};
+
+
+  /* Check for BUTTON0 to close channel */
+  if(WasButtonPressed(BUTTON0))
+  {
+    /* Got the button, so complete one-time actions before next state */
+    ButtonAcknowledge(BUTTON0);
+    
+    /* Queue close channel and change LED to blinking green to indicate channel is closing */
+    AntCloseChannelNumber(ANT_CHANNEL_USERAPP_SEEK);
+    AntCloseChannelNumber(ANT_CHANNEL_USERAPP_HIDE);
+
+#ifdef MPG1
+    LedOff(YELLOW);
+    LedOff(BLUE);
+    LedBlink(GREEN, LED_2HZ);
+#endif /* MPG1 */    
+ 
+    /* Set timer and advance states */
+    UserApp1_u32Timeout = G_u32SystemTime1ms;
+    UserApp1_StateMachine = UserApp1SM_WaitChannelClose;
+  } /* end if(WasButtonPressed(BUTTON0)) */
+  
+ 
+  /* Always check for ANT messages */
+  if( AntReadAppMessageBuffer() )
+  { if(G_sAntApiCurrentMessageExtData.u8Channel==ANT_CHANNEL_1)
+{
+     /* New data message: check what it is */
+    if(G_eAntApiCurrentMessageClass == ANT_DATA)
+    { 
+       
+      /* We are synced with a device, so blue is solid */
+      LedOff(GREEN);
+      LedOn(BLUE);
+      
+      /* Check if the new data is the same as the old data and update as we go */
+
+      for(u8 i = 0; i < ANT_APPLICATION_MESSAGE_BYTES; i++)
+      {
+
+        if(G_au8AntApiCurrentMessageBytes[i] != au8LastAntData[i])
+        {
+          au8LastAntData[i] = G_au8AntApiCurrentMessageBytes[i];
+
+          au8DataContent_hide[2 * i]     = HexToASCIICharUpper(G_au8AntApiCurrentMessageBytes[i] / 16);
+          au8DataContent_hide[2 * i + 1] = HexToASCIICharUpper(G_au8AntApiCurrentMessageBytes[i] % 16); 
+        }
+      } 
+           
+    }/* end if(G_eAntApiCurrentMessageClass == ANT_DATA) */
+    
+    else if(G_eAntApiCurrentMessageClass == ANT_TICK)
+    {
+       au8TestMessage[7]++;
+        if(au8TestMessage[7] == 0)
+         {
+            au8TestMessage[6]++;
+            if(au8TestMessage[6] == 0)
+          {
+            au8TestMessage[5]++;
+          }
+         }
+        LedOff(BLUE);
+        AntQueueBroadcastMessage(ANT_CHANNEL_USERAPP_HIDE, au8TestMessage_hide);
+
+    } /* end else if(G_eAntApiCurrentMessageClass == ANT_TICK) */
+  }
+  } /* end AntReadAppMessageBuffer() */
+  
+  if(au8DataContent_hide[0]=='1')
+  {  
+    LCDCommand(LCD_CLEAR_CMD);
+    LCDMessage(LINE1_START_ADDR, " YOU FOUND ME!"); 
+    
+    au8DataContent_hide[0] = '0';
+    u32WaitTime = G_u32SystemTime1ms;
+    UserApp1_StateMachine = UserApp1SM_Foundhider;
+  }
+
+
 } /* end UserApp1SM_ChannelOpen() */
 
-static void UserApp1SM_ChannelOpen2(void)
-{
-  static s8 s8RssiChannel01=-90;
-  static u8 au8Temp[]={'-',1,1,'d','B','m','\0'};
-  static u8 u8Temp;
-  static bool bFound1=FALSE;
-  static bool bClose = FALSE;
-//
-//  /* Check for BUTTON0 to close channel */
-//  if(WasButtonPressed(BUTTON0))
-//  {
-//    /* Got the button, so complete one-time actions before next state */
-//    ButtonAcknowledge(BUTTON0);
-//    
-//    /* Queue close channel and change LED to blinking green to indicate channel is closing */
-//    AntCloseChannelNumber(ANT_CHANNEL_USERAPP);
-//
-//
-//    UserApp1_StateMachine = UserApp1SM_WaitChannelOpen;
-//  }
 
-
-  
-    /* Always check for ANT messages */
-  if(bFound1==FALSE)
-  {
-    if( AntReadAppMessageBuffer() )
-    {
-      /* New data message: check what it is */
-      if(G_eAntApiCurrentMessageClass == ANT_DATA)
-      {
-        if(G_sAntApiCurrentMessageExtData.u8Channel == 0)
-        {
-          s8RssiChannel01 = G_sAntApiCurrentMessageExtData.s8RSSI;
-//          if(G_au8AntApiCurrentMessageBytes[0] == 0x01)
-//          {
-//            bClose = TRUE;
-//            
-//          }
-          
-          //s8RssiChannel01=G_au8AntApiCurrentMessageBytes[7];
-          //s8RssiChannel01 = G_sAntApiCurrentMessageExtData.s8RSSI;
-        }
-      }
-
-
-      u8Temp = abs(s8RssiChannel0 b1);
-      au8Temp[1] = u8Temp/10 + 48;
-      au8Temp[2] = u8Temp%10 + 48;
-      LCDMessage(LINE1_END_ADDR-6, au8Temp);
-    
-//
-//      if(s8RssiChannel01>-120&&s8RssiChannel01<-110)
-//      {
-//        LedOn(ORANGE);
-//        LedOff(RED);
-//        LedOff(PURPLE);
-//        LedOff(CYAN);
-//        LedOff(RED);
-//        LedOff(BLUE);
-//        LedOff(GREEN);
-//        LedOff(WHITE);
-//      }
-//      if(s8RssiChannel01>-110&&s8RssiChannel01<-100)
-//      {
-//        LedOn(ORANGE);
-//        LedOn(RED);
-//        LedOff(PURPLE);
-//        LedOff(CYAN);
-//        LedOff(RED);
-//        LedOff(BLUE);
-//        LedOff(GREEN);
-//        LedOff(WHITE);
-//      }
-//      if(s8RssiChannel01>-100&&s8RssiChannel01<-90)
-//      {
-//        LedOn(ORANGE);
-//        LedOn(RED);
-//        LedOn(PURPLE);
-//        LedOff(CYAN);
-//        LedOff(RED);
-//        LedOff(BLUE);
-//        LedOff(GREEN);
-//        LedOff(WHITE);
-//      }
-//      if(s8RssiChannel01>-90&&s8RssiChannel01<-80)
-//      {
-//        LedOn(ORANGE);
-//        LedOn(RED);
-//        LedOn(PURPLE);
-//        LedOn(CYAN);
-//        LedOff(RED);
-//        LedOff(BLUE);
-//        LedOff(GREEN);
-//        LedOff(WHITE);
-//      }
-//      if(s8RssiChannel01>-80&&s8RssiChannel01<-70)
-//      {
-//        LedOn(ORANGE);
-//        LedOn(RED);
-//        LedOn(PURPLE);
-//        LedOn(CYAN);
-//        LedOn(RED);
-//        LedOff(BLUE);
-//        LedOff(GREEN);
-//        LedOff(WHITE);
-//      }
-//      if(s8RssiChannel01>-70&&s8RssiChannel01<-60)
-//      {
-//        LedOn(ORANGE);
-//        LedOn(RED);
-//        LedOn(PURPLE);
-//        LedOn(CYAN);
-//        LedOn(RED);
-//        LedOn(BLUE);
-//        LedOff(GREEN);
-//        LedOff(WHITE);
-//      }
-//      if(s8RssiChannel01>-60&&s8RssiChannel01<-50)
-//      {
-//        LedOn(ORANGE);
-//        LedOn(RED);
-//        LedOn(PURPLE);
-//        LedOn(CYAN);
-//        LedOn(RED);
-//        LedOn(BLUE);
-//        LedOn(GREEN);
-//        LedOff(WHITE);
-//      }
-//      if(s8RssiChannel01>-50&&s8RssiChannel01<-45)
-//      {
-//        LedOn(ORANGE);
-//        LedOn(RED);
-//        LedOn(PURPLE);
-//        LedOn(CYAN);
-//        LedOn(RED);
-//        LedOn(BLUE);
-//        LedOn(GREEN);
-//        LedOn(WHITE);
-//        
-//      }
-      if(s8RssiChannel01>=-55)
-      {
-        LedOff(ORANGE);
-        LedOff(RED);
-        LedOff(PURPLE);
-        LedOff(CYAN);
-        LedOff(RED);
-        LedOff(BLUE);
-        LedOff(GREEN);
-        LedOff(WHITE);
-        LCDMessage(LINE1_START_ADDR, "You Found Me!");
-        LCDMessage(LINE2_START_ADDR, "10 seconds switch");
-       
-        UserApp1_StateMachine = UserApp1SM_SeekerFound;
-      }
-    }
-
-    
-  }
-  
-  
-       
-}
 /*-------------------------------------------------------------------------------------------------------------------*/
 /* Wait for channel to close */
 static void UserApp1SM_WaitChannelClose(void)
 {
   /* Monitor the channel status to check if channel is closed */
-  if(AntRadioStatusChannel(ANT_CHANNEL_USERAPP) == ANT_CLOSED)
+  if((AntRadioStatusChannel(ANT_CHANNEL_USERAPP_SEEK) == ANT_CLOSED)&&
+     (AntRadioStatusChannel(ANT_CHANNEL_USERAPP_HIDE) == ANT_CLOSED))
   {
 #ifdef MPG1
     LedOff(GREEN);
     LedOn(YELLOW);
 #endif /* MPG1 */
-
-#ifdef MPG2
-    LedOn(GREEN0);
-    LedOn(RED0);
-#endif /* MPG2 */
-    UserApp1_StateMachine = UserApp1SM_Assignrole;
+    G_sAntApiCurrentMessageExtData.s8RSSI=-99;
+    UserApp1_StateMachine = UserApp1SM_Readytostart;
   }
   
   /* Check for timeout */
@@ -860,11 +856,6 @@ static void UserApp1SM_WaitChannelClose(void)
     LedBlink(RED, LED_4HZ);
 #endif /* MPG1 */
 
-#ifdef MPG2
-    LedBlink(RED0, LED_4HZ);
-    LedOff(GREEN0);
-#endif /* MPG2 */
-    
     UserApp1_StateMachine = UserApp1SM_Error;
   }
     
@@ -880,55 +871,7 @@ static void UserApp1SM_Error(void)
 
 
 
-static void UserApp1SM_SeekerFound(void)
-{    
-  static u16 u16Counter2=10000;
-  u8 au8WelcomeMessage[] = "Assign your role";
-  u8 au8Instructions[] = "B0 Hider  B1 Seeker";
-  static bool bLEDFlag=FALSE;
-  
-  if(!bLEDFlag)
-  {
-    LedBlink(ORANGE, LED_2HZ);
-    LedBlink(RED, LED_2HZ);
-    LedBlink(PURPLE, LED_2HZ);
-    LedBlink(CYAN, LED_2HZ);
-    LedBlink(RED, LED_2HZ);
-    LedBlink(BLUE, LED_2HZ);
-    LedBlink(GREEN, LED_2HZ);
-    LedBlink(WHITE, LED_2HZ);
-    bLEDFlag=TRUE;
-  }
-//     AntCloseChannelNumber(ANT_CHANNEL_0);
-//     AntCloseChannelNumber(ANT_CHANNEL_1);
-    
-  u16Counter2--;
-
-  if(u16Counter2==0)
-  {
-    LedOff(ORANGE);
-    LedOff(RED);
-    LedOff(PURPLE);
-    LedOff(CYAN);
-    LedOff(RED);
-    LedOff(BLUE);
-    LedOff(GREEN);
-    LedOff(WHITE);    
-    LCDCommand(LCD_CLEAR_CMD);
-    LCDMessage(LINE1_START_ADDR, au8WelcomeMessage); 
-    LCDMessage(LINE2_START_ADDR, au8Instructions); 
-     
-    AntCloseChannelNumber(ANT_CHANNEL_0);
-    AntCloseChannelNumber(ANT_CHANNEL_1);
-    
-    UserApp1_StateMachine = UserApp1SM_Assignrole;
-    u16Counter2=10000;
-    bLEDFlag=FALSE;
-  }
-  
-
-}
-
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* End of File                                                                                                        */
 /*--------------------------------------------------------------------------------------------------------------------*/
+
