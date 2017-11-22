@@ -32,8 +32,12 @@ Constants / Definitions
 #define ANT_CHANNEL_USERAPP_SEEK        ANT_CHANNEL_0         /* Channel 0 - 7 */
 #define ANT_CHANNEL_USERAPP_HIDE        ANT_CHANNEL_1         /* Channel 0 - 7 */
 #define ANT_CHANNEL_TYPE_USERAPP        CHANNEL_TYPE_SLAVE    /* ANT SLAVE */
-#define ANT_DEVICEID_LO_USERAPP         (u8)0x19                 /* Low byte of two-byte Device # */
-#define ANT_DEVICEID_HI_USERAPP         (u8)0x13                 /* High byte of two-byte Device # */
+#define ANT_DEVICEID_LO_USERAPP_HIDER         (u8)0x19                 /* Low byte of two-byte Device # */
+#define ANT_DEVICEID_HI_USERAPP_HIDER         (u8)0x13                 /* High byte of two-byte Device # */
+
+#define ANT_DEVICEID_LO_USERAPP_SEEKER        (u8)0x00                /* Low byte of two-byte Device # */
+#define ANT_DEVICEID_HI_USERAPP_SEEKER        (u8)0x00                 /* High byte of two-byte Device # */
+
 #define ANT_DEVICE_TYPE_USERAPP         (u8)0                /* 1 - 255 */
 #define ANT_TRANSMISSION_TYPE_USERAPP   (u8)0                 /* 1-127 (MSB is pairing bit) */
 #define ANT_CHANNEL_PERIOD_LO_USERAPP   (u8)0x00              /* Low byte of two-byte channel period 0x0001 - 0x7fff */
@@ -76,14 +80,18 @@ static void UserApp1SM_CheckChannel0Assign(void);
 static void UserApp1SM_WaitChannel1Assign(void);
 static void UserApp1SM_CheckChannel1Assign(void);
 
-static void UserApp1SM_Idle(void);    
+static void UserApp1SM_WaitChoose(void); 
+
+static void UserApp1SM_StandBy(void);
+static void UserApp1SM_WAIT(void);
 static void UserApp1SM_WaitChannelOpen(void);
-static void UserApp1SM_Readytostart(void);
 static void UserApp1SM_Gamestart(void);
-static void UserApp1SM_wait3s(void);
-static void UserApp1SM_seek(void);
-static void UserApp1SM_Foundhider(void);
-static void UserApp1SM_hide(void);
+
+static void UserApp1SM_SEEKER(void);
+static void UserApp1SM_HIDER(void);
+
+static void UserApp1SM_Found(void);
+
 static void UserApp1SM_WaitChannelClose(void);
 
 static void UserApp1SM_Error(void);         
